@@ -1,0 +1,35 @@
+REPORT ZEXTRACT_LOAD_SALES.
+
+* Declare internal tables and work areas
+DATA: lt_vbak TYPE TABLE OF VBAK,    " Table to hold extracted data
+      wa_vbak TYPE VBAK,             " Work area for VBAK data
+      lt_sales TYPE TABLE OF /BIC/ZCUBE_SALES, " Table for target structure in BW
+      wa_sales TYPE /BIC/ZCUBE_SALES.          " Work area for target data in BW
+
+* Extract data from VBAK table (Sales Document Header)
+SELECT * FROM VBAK INTO TABLE lt_vbak WHERE ERDAT = sy-datum.
+
+IF sy-subrc = 0.
+  WRITE: / 'Data extracted successfully from VBAK.'.
+ELSE.
+  WRITE: / 'Error extracting data from VBAK.'.
+  EXIT.
+ENDIF.
+
+* Transform and load data into the InfoCube
+LOOP AT lt_vbak INTO wa_vbak.
+  CLEAR wa_sales.
+  wa_sales-/bic/sales_order = wa_vbak-vbeln.
+  wa_sales-/bic/sales_amount = wa_vbak-netwr.
+  wa_sales-/bic/currency = wa_vbak-waerk.
+  APPEND wa_sales TO lt_sales.
+ENDLOOP.
+
+* Insert transformed data into the BW InfoCube (ZCUBE_SALES)
+INSERT /BIC/ZCUBE_SALES FROM TABLE lt_sales.
+
+IF sy-subrc = 0.
+  WRITE: / 'Data loaded successfully into BW InfoCube ZCUBE_SALES.'.
+ELSE.
+  WRITE: / 'Error loading data into BW InfoCube ZCUBE_SALES.'.
+ENDIF.
